@@ -89,6 +89,12 @@ class Runs extends BaseController
             'runStopDate'   => 'required|min_length[9]|integer',
         ];
         if ($this->validate($validationRules)) {
+            $gen_id = $this->request->getPost('stopGenId');
+            $stop_date = $this->request->getPost('runStopDate');
+            $db = \Config\Database::connect();
+            $query = $db->query('SELECT startDate FROM `generator`.`genset__runs` WHERE  genId = ? and stopDate IS NULL;', [$gen_id]);
+            $row   = $query->getRow();
+            $start_date = $row->startDate;
             // save runs to Runs table
             $model = model(RunsModel::class);
 
@@ -98,13 +104,23 @@ class Runs extends BaseController
                 ->set('stopDate', $this->request->getPost('runStopDate'))
                 ->update();
             // update state after runs to Gen table
+            $query = $db->query('SELECT litresPerHour FROM genset__types WHERE id = (SELECT genTypeId FROM gensets WHERE genId = ?);', [$gen_id]);
+            $row   = $query->getRow();
+            $base_fuel_usage = $row->litresPerHour;
+            $query = $db->query('SELECT genLitres FROM gensets WHERE genId = ?;', [$gen_id]);
+            $row   = $query->getRow();
+            $fuel_start = $row->genLitres;
+            $work_time = $stop_date - $start_date;
+            $fuel_used = $base_fuel_usage * $work_time / 3600;
+            $fuel_left = round($fuel_start, 2) - round($fuel_used, 2);
             $genModel = model(GenSetsModel::class);
             $genData = [
                 'genId'   => $this->request->getPost('stopGenId'),
                 'genState' => null, // working or no
+                'genLitres' => $fuel_left
             ];
             $genModel->save($genData);
-            return $this->response->setJSON(['success' => 'Генератор успішно зупинено']);
+            return $this->response->setJSON(['success' => 'Генератор успішно зупинено', 'work_time' => $work_time, 'fuel_used' => round($fuel_used, 2), 'fuel_left' => $fuel_left]);
         } else {
             return $this->response->setJSON(['success' => false, 'errors' => $this->validator->getErrors()]);
         }

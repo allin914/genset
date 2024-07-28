@@ -26,10 +26,10 @@ class Database extends Config
      */
     public array $default = [
         'DSN'          => '',
-        'hostname'     => 'localhost',
-        'username'     => 'generators-git',
-        'password'     => 'generators-git',
-        'database'     => 'generators-git',
+        'hostname'     => 'db',
+        'username'     => 'changeme',
+        'password'     => 'changeme',
+        'database'     => 'generator',
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
         'pConnect'     => false,
